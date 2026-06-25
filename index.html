@@ -1079,7 +1079,7 @@ function renderMPG(){
   document.getElementById('mp-yr').textContent=mpY;
   const g=document.getElementById('mp-grid');g.innerHTML='';
   MNS.forEach((mn,i)=>{
-    const n=i+1,fut=(mpY>TODAY.y)||(mpY===TODAY.y&&n>TODAY.m);
+    const n=i+1,fut=(mpY>REAL_TODAY.y)||(mpY===REAL_TODAY.y&&n>REAL_TODAY.m);
     const s2=(mpY===selY&&n===selM);
     const d=document.createElement('div');
     d.className='mp-m'+(s2?' sel':'')+(fut?' fut':'');
@@ -1092,9 +1092,9 @@ function updDisp(){document.getElementById('month-disp').textContent=`${selY}년
 function closeMPDD(){document.getElementById('mp-dd').style.display='none';}
 document.getElementById('month-disp').onclick=e=>{e.stopPropagation();const dd=document.getElementById('mp-dd');dd.style.display=dd.style.display==='none'?'block':'none';mpY=selY;renderMPG();};
 document.getElementById('btn-prev').onclick=()=>{if(selM===1){selY--;selM=12;}else selM--;updDisp();renderAll();};
-document.getElementById('btn-next').onclick=()=>{const ny=selM===12?selY+1:selY,nm=selM===12?1:selM+1;if((ny>TODAY.y)||(ny===TODAY.y&&nm>TODAY.m))return;selY=ny;selM=nm;updDisp();renderAll();};
+document.getElementById('btn-next').onclick=()=>{const ny=selM===12?selY+1:selY,nm=selM===12?1:selM+1;if((ny>REAL_TODAY.y)||(ny===REAL_TODAY.y&&nm>REAL_TODAY.m))return;selY=ny;selM=nm;updDisp();renderAll();};
 document.getElementById('mp-py').onclick=e=>{e.stopPropagation();mpY--;renderMPG();};
-document.getElementById('mp-ny').onclick=e=>{e.stopPropagation();if(mpY<TODAY.y)mpY++;renderMPG();};
+document.getElementById('mp-ny').onclick=e=>{e.stopPropagation();if(mpY<REAL_TODAY.y)mpY++;renderMPG();};
 document.addEventListener('click',e=>{if(!e.target.closest('.mp-wrap'))closeMPDD();});
 
 // ═══════════════════════════════════════════
@@ -1151,7 +1151,7 @@ document.getElementById('cs-search').addEventListener('input',e=>{
 // RENDER ALL
 // ═══════════════════════════════════════════
 function renderAll(){
-  document.getElementById('h-upd').textContent=`샘플 데이터 · ${selY}년 ${selM}월`;
+  document.getElementById('h-upd').textContent=`${selY}년 ${selM}월 기준 · ${RAW?.meta?.total_count?.toLocaleString('ko-KR')||'—'}건`;
   renderKPI();
   renderCarSalesTable();
   renderPeriod();
