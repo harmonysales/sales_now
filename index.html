@@ -63,9 +63,18 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 
 /* ── MAIN ── */
 main{padding:20px 24px 40px;max-width:1600px;margin:0 auto;}
-.sec{font-size:12px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.sec{font-size:12px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .sec::before{content:'';display:block;width:3px;height:15px;background:var(--blue);border-radius:2px;}
 .stag{font-size:12px;background:var(--blue-l);color:var(--blue);padding:2px 10px;border-radius:20px;font-weight:600;}
+
+/* DAILY DATE PICKER */
+.daily-date-picker{display:flex;align-items:center;gap:6px;margin-left:4px;}
+.ddp-nav{width:28px;height:28px;border:1px solid var(--border);border-radius:7px;background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--slate);font-size:12px;transition:all .15s;font-family:var(--font);}
+.ddp-nav:hover{background:var(--blue-l);border-color:var(--blue);color:var(--blue);}
+.ddp-input{height:30px;padding:0 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--mono);color:var(--blue);font-weight:600;background:var(--blue-l);cursor:pointer;outline:none;transition:border-color .15s;}
+.ddp-input:focus,.ddp-input:hover{border-color:var(--blue);}
+.ddp-today{height:28px;padding:0 12px;border:1px solid var(--blue-m);border-radius:7px;background:var(--blue);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .15s;}
+.ddp-today:hover{background:#1d4ed8;}
 
 /* ══════════════════════════════════
    DAILY KPI — 새 디자인
@@ -257,7 +266,16 @@ main{padding:20px 24px 40px;max-width:1600px;margin:0 auto;}
 <!-- ══════════════════════════════════════
      DAILY KPI — 카드 3열 레이아웃
 ══════════════════════════════════════ -->
-<div class="sec">데일리 현황 <span class="stag" id="today-tag">—</span></div>
+<div class="sec" style="margin-bottom:10px">
+  데일리 현황
+  <span class="stag" id="today-tag">—</span>
+  <div class="daily-date-picker" id="daily-date-picker">
+    <button class="ddp-nav" id="ddp-prev">◀</button>
+    <input type="date" id="ddp-input" class="ddp-input">
+    <button class="ddp-nav" id="ddp-next">▶</button>
+    <button class="ddp-today" id="ddp-today-btn">오늘</button>
+  </div>
+</div>
 <div class="daily-grid">
 
   <!-- 카드1: 전체 -->
@@ -532,81 +550,9 @@ main{padding:20px 24px 40px;max-width:1600px;margin:0 auto;}
 
 <script>
 // ═══════════════════════════════════════════
-// DATA
+// DATA — DATA.json 로드 (동일 폴더에 위치)
 // ═══════════════════════════════════════════
-const RAW = {
-  by_month:[
-    {월:'2026-01',건수:646,렌탈료:433023000},
-    {월:'2026-02',건수:540,렌탈료:368563000},
-    {월:'2026-03',건수:660,렌탈료:444877077},
-    {월:'2026-04',건수:774,렌탈료:530171915},
-    {월:'2026-05',건수:649,렌탈료:472799543},
-    {월:'2026-06',건수:223,렌탈료:146815021}
-  ],
-  by_product:[
-    {유형:'동반차',건수:2250,렌탈료:1597340000,계약:'장기'},
-    {유형:'동반차리스',건수:337,렌탈료:191320000,계약:'리스'},
-    {유형:'구독카',건수:250,렌탈료:160428800,계약:'장기'},
-    {유형:'믿음카',건수:248,렌탈료:166239000,계약:'장기'},
-    {유형:'6&12렌트',건수:246,렌탈료:177844000,계약:'장기'},
-    {유형:'월렌트',건수:139,렌탈료:101261000,계약:'장기'},
-    {유형:'믿음카리스',건수:2,렌탈료:1322000,계약:'리스'}
-  ],
-  by_channel:[
-    {채널:'(주) 지엔에이',건수:661,렌탈료:446306051},
-    {채널:'주식회사 오토원',건수:276,렌탈료:190220992},
-    {채널:'하모니렌트카',건수:196,렌탈료:117900909,direct:true},
-    {채널:'(주)스타오토모빌',건수:186,렌탈료:123675000},
-    {채널:'주식회사 케이에스오토플랜',건수:177,렌탈료:119225000},
-    {채널:'(주)차타고',건수:126,렌탈료:88805000},
-    {채널:'주식회사 공카',건수:124,렌탈료:86893000},
-    {채널:'주식회사 차담진에스제이',건수:97,렌탈료:61088520},
-    {채널:'주식회사 황제오토플랜',건수:59,렌탈료:41839000},
-    {채널:'나장열((주)나카)',건수:50,렌탈료:36917695}
-  ],
-  by_worker:[
-    {수행원:'이진희(차드림)',건수:772,렌탈료:530075051},
-    {수행원:'나장열((주)나카)',건수:314,렌탈료:223698231},
-    {수행원:'주식회사 하렌파트너스',건수:285,렌탈료:184534995},
-    {수행원:'최형용(렌트카웨이)',건수:255,렌탈료:174438789},
-    {수행원:'안점숙(드림카)',건수:232,렌탈료:156848000,chok:true},
-    {수행원:'조복경(인어카)',건수:194,렌탈료:132263000,chok:true},
-    {수행원:'신선미(레이디오토)',건수:190,렌탈료:123738211,chok:true},
-    {수행원:'허아도',건수:176,렌탈료:121108000},
-    {수행원:'김홍국(빠른렌트카)',건수:143,렌탈료:97819000,midc:true},
-    {수행원:'박미라',건수:92,렌탈료:57907999,chok:true}
-  ],
-  // 차종에 카테고리 정보 추가 (실제 데이터라면 더 많겠지만 대표 매핑)
-  by_car:[
-    {모델:'아반떼',건수:900,렌탈료:576000000,카테고리:'준중형'},
-    {모델:'셀토스',건수:349,렌탈료:236000000,카테고리:'소형 SUV'},
-    {모델:'포터2',건수:229,렌탈료:123000000,카테고리:'화물'},
-    {모델:'쏘나타',건수:216,렌탈료:144000000,카테고리:'중형'},
-    {모델:'카니발',건수:210,렌탈료:185000000,카테고리:'RV/MPV'},
-    {모델:'그랜저',건수:208,렌탈료:165000000,카테고리:'준대형'},
-    {모델:'베뉴',건수:189,렌탈료:100000000,카테고리:'소형 SUV'},
-    {모델:'스포티지',건수:146,렌탈료:113000000,카테고리:'준중형 SUV'},
-    {모델:'레이',건수:100,렌탈료:52000000,카테고리:'경형'},
-    {모델:'팰리세이드',건수:93,렌탈료:95000000,카테고리:'대형 SUV'},
-    {모델:'쏘렌토',건수:88,렌탈료:80000000,카테고리:'중형 SUV'},
-    {모델:'싼타페',건수:84,렌탈료:71000000,카테고리:'중형 SUV'},
-    {모델:'G80',건수:78,렌탈료:98000000,카테고리:'준대형'},
-    {모델:'캐스퍼',건수:77,렌탈료:37000000,카테고리:'경형 SUV'},
-    {모델:'투싼',건수:66,렌탈료:48000000,카테고리:'준중형 SUV'},
-    {모델:'K5',건수:58,렌탈료:42000000,카테고리:'중형'},
-    {모델:'K8',건수:45,렌탈료:38000000,카테고리:'준대형'},
-    {모델:'EV6',건수:40,렌탈료:36000000,카테고리:'중형 SUV'},
-    {모델:'봉고3',건수:33,렌탈료:19000000,카테고리:'화물'},
-    {모델:'스타리아',건수:29,렌탈료:26000000,카테고리:'RV/MPV'}
-  ],
-  by_cat:[
-    {구분:'준중형',건수:922},{구분:'소형 SUV',건수:535},{구분:'준대형',건수:357},
-    {구분:'중형',건수:285},{구분:'화물',건수:262},{구분:'준중형 SUV',건수:256},
-    {구분:'중형 SUV',건수:232},{구분:'RV/MPV',건수:218},{구분:'대형 SUV',건수:154},
-    {구분:'경형',건수:145},{구분:'경형 SUV',건수:77},{구분:'승합',건수:32},{구분:'대형',건수:17}
-  ],
-  by_sale:[{구분:'신차',건수:1732},{구분:'재렌트',건수:1761}]
-};
+let RAW = null; // fetch 후 세팅됨
 
 // 카테고리 그룹 (클릭하면 해당 카테고리 차종 필터)
 const CAT_GROUPS = [
@@ -631,7 +577,8 @@ const CAT_TAG_TC = {
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-const TODAY={y:2026,m:6,d:25};
+const REAL_TODAY={y:2026,m:6,d:25}; // 실제 오늘 (데이터 최신일)
+let SEL_DATE={y:2026,m:6,d:25};     // 데일리 현황 기준일 (사용자 선택)
 let selY=2026,selM=6;
 let fProd='all',fSale='all',fContr='all';
 let activePeriod='daily';
@@ -639,13 +586,12 @@ let csSearch='',csCatFilter='all';
 const CI={};
 
 // ═══════════════════════════════════════════
-// CONSTS
+// CONSTS (RAW 로드 후 renderAll() 시점에 참조)
 // ═══════════════════════════════════════════
-const PROD_TOTAL=RAW.by_product.reduce((s,x)=>s+x.건수,0);
-const SALE_TOTAL=RAW.by_sale.reduce((s,x)=>s+x.건수,0);
-const LEASE_CNT=RAW.by_product.filter(x=>x.계약==='리스').reduce((s,x)=>s+x.건수,0);
-const RENT_CNT=PROD_TOTAL-LEASE_CNT;
-const LR=LEASE_CNT/PROD_TOTAL,RR=RENT_CNT/PROD_TOTAL;
+function PROD_TOTAL(){return RAW?RAW.by_product.reduce((s,x)=>s+x.건수,0):1;}
+function SALE_TOTAL(){return RAW?RAW.by_sale.reduce((s,x)=>s+x.건수,0):1;}
+function LEASE_CNT(){return RAW?RAW.by_product.filter(x=>x.계약==='리스').reduce((s,x)=>s+x.건수,0):0;}
+const LR=0.097,RR=0.903; // fallback: 실제값은 fetch 후 window._LR/_RR 로 덮어씀
 const CAT_COLORS=['#2563eb','#059669','#d97706','#7c3aed','#0891b2'];
 const BAR_COLORS=['#2563eb','#059669','#d97706','#7c3aed','#0891b2','#dc2626','#be185d','#65a30d','#0369a1','#92400e','#1d4ed8','#15803d','#b45309','#6d28d9','#0e7490','#b91c1c'];
 const PAL={total:'#2563eb',동반차:'#2563eb',동반차리스:'#7c3aed',구독카:'#059669',믿음카:'#d97706','6&12렌트':'#0891b2',월렌트:'#be185d',믿음카리스:'#9333ea',신차:'#059669',재렌트:'#d97706',장기:'#2563eb',리스:'#7c3aed',yoy:'#94a3b8'};
@@ -665,18 +611,36 @@ const fmtB=n=>(n/100000000).toFixed(1);
 const mkey=(y,m)=>`${y}-${String(m).padStart(2,'0')}`;
 
 function ratio(){
+  const lr=window._LR||LR, rr=window._RR||RR;
   let r=1;
-  if(fProd!=='all'){const p=RAW.by_product.find(x=>x.유형===fProd);r*=p?p.건수/PROD_TOTAL:.1;}
-  if(fSale!=='all'){const s=RAW.by_sale.find(x=>x.구분===fSale);r*=s?s.건수/SALE_TOTAL:.5;}
-  if(fContr!=='all')r*=fContr==='리스'?LR:RR;
+  if(fProd!=='all'){const p=RAW.by_product.find(x=>x.유형===fProd);r*=p?p.건수/PROD_TOTAL():.1;}
+  if(fSale!=='all'){const s=RAW.by_sale.find(x=>x.구분===fSale);r*=s?s.건수/SALE_TOTAL():.5;}
+  if(fContr!=='all')r*=fContr==='리스'?lr:rr;
   return r;
 }
 function getMonthData(y,m){return RAW.by_month.find(x=>x.월===mkey(y,m))||null;}
 
 function genDaily(y,m){
   const md=getMonthData(y,m);if(!md)return[];
+  const pad=n=>String(n).padStart(2,'0');
+  const prefix=`${y}-${pad(m)}-`;
+
+  // ① RAW.daily 실제 데이터 우선 사용
+  if(RAW && RAW.daily && RAW.daily.length){
+    const days=new Date(y,m,0).getDate();
+    const map={};
+    RAW.daily.filter(x=>x.날짜&&x.날짜.startsWith(prefix)).forEach(x=>{
+      const d=parseInt(x.날짜.split('-')[2]);
+      map[d]={d, cnt:x.건수, lt:x.장기렌트||0, ls:x.리스||0, 신차:x.신차||0, 재렌트:x.재렌트||0};
+    });
+    const result=[];
+    for(let d=1;d<=days;d++) result.push(map[d]||{d,cnt:0,lt:0,ls:0,신차:0,재렌트:0});
+    return result;
+  }
+
+  // ② fallback: 시뮬레이션
   const days=new Date(y,m,0).getDate();
-  const isNow=(y===TODAY.y&&m===TODAY.m),active=isNow?TODAY.d:days;
+  const isNow=(y===REAL_TODAY.y&&m===REAL_TODAY.m),active=isNow?REAL_TODAY.d:days;
   const seed=m*17+y*3,raw=[];
   for(let d=1;d<=days;d++){
     if(d>active){raw.push({d,cnt:0});continue;}
@@ -717,23 +681,23 @@ function buildLineDS(base,viewMode,yoyBase,showYoy){
   }else if(viewMode==='product'){
     ['동반차','동반차리스','믿음카','구독카','6&12렌트','월렌트'].forEach(p=>{
       const pt=RAW.by_product.find(x=>x.유형===p);if(!pt)return;
-      let r=pt.건수/PROD_TOTAL;
-      if(fSale!=='all'){const s=RAW.by_sale.find(x=>x.구분===fSale);r*=s?s.건수/SALE_TOTAL:.5;}
+      let r=pt.건수/PROD_TOTAL();
+      if(fSale!=='all'){const s=RAW.by_sale.find(x=>x.구분===fSale);r*=s?s.건수/SALE_TOTAL():.5;}
       if(fContr!=='all')r*=fContr==='리스'?LR:RR;
       ds.push(mkLine(p,base.map(v=>Math.round(v*r)),PAL[p]||'#888'));
     });
   }else if(['동반차','동반차리스','믿음카','구독카','6&12렌트','월렌트'].includes(viewMode)){
     const pt=RAW.by_product.find(x=>x.유형===viewMode);
-    let r=pt?pt.건수/PROD_TOTAL:.1;
-    if(fSale!=='all'){const s=RAW.by_sale.find(x=>x.구분===fSale);r*=s?s.건수/SALE_TOTAL:.5;}
+    let r=pt?pt.건수/PROD_TOTAL():.1;
+    if(fSale!=='all'){const s=RAW.by_sale.find(x=>x.구분===fSale);r*=s?s.건수/SALE_TOTAL():.5;}
     if(fContr!=='all')r*=fContr==='리스'?LR:RR;
     ds.push(mkLine(viewMode,base.map(v=>Math.round(v*r)),PAL[viewMode]||PAL.total));
   }else if(viewMode==='sale'){
     RAW.by_sale.forEach(st=>{
       if(fSale!=='all'&&fSale!==st.구분)return;
-      const sr=st.건수/SALE_TOTAL;
+      const sr=st.건수/SALE_TOTAL();
       let r=sr;
-      if(fProd!=='all'){const pt=RAW.by_product.find(x=>x.유형===fProd);r*=pt?pt.건수/PROD_TOTAL:.1;}
+      if(fProd!=='all'){const pt=RAW.by_product.find(x=>x.유형===fProd);r*=pt?pt.건수/PROD_TOTAL():.1;}
       if(fContr!=='all')r*=fContr==='리스'?LR:RR;
       ds.push(mkLine(st.구분,base.map(v=>Math.round(v*r)),PAL[st.구분]||'#888'));
     });
@@ -742,8 +706,8 @@ function buildLineDS(base,viewMode,yoyBase,showYoy){
       if(fContr==='장기'&&p.l==='리스')return;
       if(fContr==='리스'&&p.l==='장기')return;
       let r=p.r;
-      if(fProd!=='all'){const pt2=RAW.by_product.find(x=>x.유형===fProd);r*=pt2?pt2.건수/PROD_TOTAL:.1;}
-      if(fSale!=='all'){const s=RAW.by_sale.find(x=>x.구분===fSale);r*=s?s.건수/SALE_TOTAL:.5;}
+      if(fProd!=='all'){const pt2=RAW.by_product.find(x=>x.유형===fProd);r*=pt2?pt2.건수/PROD_TOTAL():.1;}
+      if(fSale!=='all'){const s=RAW.by_sale.find(x=>x.구분===fSale);r*=s?s.건수/SALE_TOTAL():.5;}
       ds.push(mkLine(p.l,base.map(v=>Math.round(v*r)),p.c));
     });
   }
@@ -822,12 +786,12 @@ function renderKPI(){
   const prevMD=getMonthData(pm.y,pm.m);
   const gr=ratio();
 
-  const todayCnt=Math.round((daily[TODAY.d-1]?.cnt||0)*gr);
-  const yestCnt=Math.round((daily[TODAY.d-2]?.cnt||0)*gr);
+  const todayCnt=Math.round((daily[SEL_DATE.d-1]?.cnt||0)*gr);
+  const yestCnt=Math.round((daily[SEL_DATE.d-2]?.cnt||0)*gr);
   const thisWk=Math.round((weekly[weekly.length-1]?.cnt||0)*gr);
   const prevWk=Math.round((weekly[weekly.length-2]?.cnt||0)*gr);
-  const cumCnt=Math.round(daily.slice(0,TODAY.d).reduce((s,d)=>s+d.cnt,0)*gr);
-  const prevMEst=prevMD?Math.round(prevMD.건수*(TODAY.d/30)*gr):null;
+  const cumCnt=Math.round(daily.slice(0,SEL_DATE.d).reduce((s,d)=>s+d.cnt,0)*gr);
+  const prevMEst=prevMD?Math.round(prevMD.건수*(SEL_DATE.d/30)*gr):null;
 
   function setTrend(id,cur,prev){
     const el=document.getElementById(id);if(!el)return;
@@ -838,7 +802,7 @@ function renderKPI(){
   }
   function sv(id,v){const el=document.getElementById(id);if(el)el.textContent=fmt(v);}
 
-  const dateStr=`${TODAY.y}.${String(TODAY.m).padStart(2,'0')}.${String(TODAY.d).padStart(2,'0')} 기준`;
+  const dateStr=`${SEL_DATE.y}.${String(SEL_DATE.m).padStart(2,'0')}.${String(SEL_DATE.d).padStart(2,'0')} 기준`;
   ['dkc-date1','dkc-date2','dkc-date3'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=dateStr;});
 
   sv('k-tot-d',todayCnt);setTrend('k-tot-dt',todayCnt,yestCnt);
@@ -850,7 +814,7 @@ function renderKPI(){
   sv('k-ls-d',Math.round(todayCnt*LR));setTrend('k-ls-dt',Math.round(todayCnt*LR),Math.round(yestCnt*LR));
   sv('k-ls-w',Math.round(thisWk*LR));setTrend('k-ls-wt',Math.round(thisWk*LR),Math.round(prevWk*LR));
   sv('k-ls-m',Math.round(cumCnt*LR));setTrend('k-ls-mt',Math.round(cumCnt*LR),prevMEst?Math.round(prevMEst*LR):null);
-  document.getElementById('today-tag').textContent=`${TODAY.y}년 ${TODAY.m}월 ${TODAY.d}일 기준`;
+  document.getElementById('today-tag').textContent=`${SEL_DATE.y}년 ${SEL_DATE.m}월 ${SEL_DATE.d}일`;
 }
 
 // ═══════════════════════════════════════════
@@ -878,34 +842,67 @@ function initCatButtons(){
 // CAR SALES TABLE
 // ═══════════════════════════════════════════
 function getCarModelsForMonth(){
+  const pad=n=>String(n).padStart(2,'0');
+  const selDateStr=`${SEL_DATE.y}-${pad(SEL_DATE.m)}-${pad(SEL_DATE.d)}`;
+  const pm=selM===1?{y:selY-1,m:12}:{y:selY,m:selM-1};
+  const monthPrefix=`${selY}-${pad(selM)}-`;
+
+  // ── daily_by_car 실제 데이터 사용 ──
+  if(RAW&&RAW.daily_by_car&&Object.keys(RAW.daily_by_car).length){
+    const weekStart=(()=>{
+      const dt=new Date(SEL_DATE.y,SEL_DATE.m-1,SEL_DATE.d);
+      const dow=dt.getDay(), diff=dow===0?6:dow-1;
+      const s=new Date(dt); s.setDate(dt.getDate()-diff); return s;
+    })();
+    const carMap={};
+    Object.entries(RAW.daily_by_car).forEach(([date,cars])=>{
+      if(!date.startsWith(monthPrefix)) return;
+      const [dy,dm,dd]=date.split('-').map(Number);
+      if(dy>SEL_DATE.y||(dy===SEL_DATE.y&&dm>SEL_DATE.m)||(dy===SEL_DATE.y&&dm===SEL_DATE.m&&dd>SEL_DATE.d)) return;
+      const dt2=new Date(dy,dm-1,dd);
+      const isToday=(date===selDateStr);
+      const isWeek=(dt2>=weekStart&&dt2<=new Date(SEL_DATE.y,SEL_DATE.m-1,SEL_DATE.d));
+      cars.forEach(c=>{
+        if(!carMap[c.모델])carMap[c.모델]={today:0,week:0,cumul:0,카테고리:c.카테고리||''};
+        carMap[c.모델].cumul+=c.건수;
+        if(isToday)carMap[c.모델].today+=c.건수;
+        if(isWeek)carMap[c.모델].week+=c.건수;
+      });
+    });
+    const prevPrefix=`${pm.y}-${pad(pm.m)}-`;
+    const prevMap={};
+    Object.entries(RAW.daily_by_car).forEach(([date,cars])=>{
+      if(!date.startsWith(prevPrefix))return;
+      const dd=parseInt(date.split('-')[2]);
+      if(dd>SEL_DATE.d)return;
+      cars.forEach(c=>{prevMap[c.모델]=(prevMap[c.모델]||0)+c.건수;});
+    });
+    const allModels=new Set([...RAW.by_car.map(x=>x.모델),...Object.keys(carMap)]);
+    return [...allModels].map(model=>{
+      const ref=RAW.by_car.find(x=>x.모델===model)||{모델:model,카테고리:''};
+      const d=carMap[model]||{today:0,week:0,cumul:0,카테고리:ref.카테고리};
+      return{모델:model,카테고리:d.카테고리||ref.카테고리||'',today:d.today,week:d.week,cumul:d.cumul,prevCumul:prevMap[model]||0,mc:Math.max(d.cumul,1)};
+    }).filter(x=>x.cumul>0||x.today>0).sort((a,b)=>b.cumul-a.cumul);
+  }
+
+  // ── fallback: 시뮬레이션 ──
   const md=getMonthData(selY,selM);
   const totalAnn=RAW.by_month.reduce((s,m)=>s+m.건수,0);
-  const share=md?md.건수/totalAnn:1/6;
-  const gr=ratio();
+  const share=md?md.건수/totalAnn:1/6, gr=ratio();
   const daily=genDaily(selY,selM),weekly=genWeekly(selY,selM);
-  const pm=selM===1?{y:selY-1,m:12}:{y:selY,m:selM-1};
   const prevMD=getMonthData(pm.y,pm.m);
   const prevShare=prevMD?prevMD.건수/totalAnn:share*.9;
-  const todayRatio=(daily[TODAY.d-1]?.cnt||0)/Math.max(1,md?.건수||1);
+  const todayRatio=(daily[SEL_DATE.d-1]?.cnt||0)/Math.max(1,md?.건수||1);
   const weekRatio=(weekly[weekly.length-1]?.cnt||0)/Math.max(1,md?.건수||1);
-  const cumRatio=daily.slice(0,TODAY.d).reduce((s,d)=>s+d.cnt,0)/Math.max(1,md?.건수||1);
-
+  const cumRatio=daily.slice(0,SEL_DATE.d).reduce((s,d)=>s+d.cnt,0)/Math.max(1,md?.건수||1);
   return RAW.by_car.map((x,i)=>{
     const v=0.7+0.5*Math.abs(Math.sin((i+1)*selM*2.9));
     const mc=Math.max(1,Math.round(x.건수*share*6*v*gr));
     const prevV=0.7+0.5*Math.abs(Math.sin((i+1)*(pm.m)*2.9));
     const prevMC=Math.max(1,Math.round(x.건수*prevShare*6*prevV*gr));
-    return{
-      모델:x.모델,카테고리:x.카테고리,
-      today:Math.max(0,Math.round(mc*todayRatio)),
-      week:Math.max(0,Math.round(mc*weekRatio)),
-      cumul:Math.round(mc*cumRatio),
-      prevCumul:Math.round(prevMC*Math.min(TODAY.d/30,1)),
-      mc
-    };
+    return{모델:x.모델,카테고리:x.카테고리,today:Math.max(0,Math.round(mc*todayRatio)),week:Math.max(0,Math.round(mc*weekRatio)),cumul:Math.round(mc*cumRatio),prevCumul:Math.round(prevMC*Math.min(SEL_DATE.d/30,1)),mc};
   }).sort((a,b)=>b.cumul-a.cumul);
 }
-
 function renderCarSalesTable(){
   let models=getCarModelsForMonth();
   const maxMC=Math.max(...models.map(x=>x.mc));
@@ -1162,9 +1159,130 @@ function renderAll(){
   renderCars();
 }
 
-// INIT
-initCatButtons();
-renderAll();
+// ═══════════════════════════════════════════
+// DAILY DATE PICKER
+// ═══════════════════════════════════════════
+function initDailyDatePicker(){
+  const inp=document.getElementById('ddp-input');
+  // 초기값 세팅
+  const pad=n=>String(n).padStart(2,'0');
+  inp.value=`${SEL_DATE.y}-${pad(SEL_DATE.m)}-${pad(SEL_DATE.d)}`;
+  // max = REAL_TODAY
+  inp.max=`${REAL_TODAY.y}-${pad(REAL_TODAY.m)}-${pad(REAL_TODAY.d)}`;
+  inp.min=RAW&&RAW.by_month&&RAW.by_month.length?RAW.by_month[0].월+'-01':'2024-01-01';
+
+  function applyDate(dateStr){
+    const [y,m,d]=dateStr.split('-').map(Number);
+    // 미래 날짜 차단
+    if(y>REAL_TODAY.y||(y===REAL_TODAY.y&&m>REAL_TODAY.m)||(y===REAL_TODAY.y&&m===REAL_TODAY.m&&d>REAL_TODAY.d)) return;
+    SEL_DATE={y,m,d};
+    // 기준년월도 날짜에 맞게 동기화
+    selY=y; selM=m;
+    inp.value=dateStr;
+    updDisp();
+    renderAll();
+  }
+
+  inp.addEventListener('change',e=>applyDate(e.target.value));
+
+  document.getElementById('ddp-prev').onclick=()=>{
+    const dt=new Date(SEL_DATE.y,SEL_DATE.m-1,SEL_DATE.d-1);
+    if(dt<new Date(2026,0,1)) return;
+    applyDate(`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`);
+  };
+  document.getElementById('ddp-next').onclick=()=>{
+    const dt=new Date(SEL_DATE.y,SEL_DATE.m-1,SEL_DATE.d+1);
+    const mx=new Date(REAL_TODAY.y,REAL_TODAY.m-1,REAL_TODAY.d);
+    if(dt>mx) return;
+    applyDate(`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`);
+  };
+  document.getElementById('ddp-today-btn').onclick=()=>{
+    SEL_DATE={...REAL_TODAY};
+    applyDate(`${REAL_TODAY.y}-${pad(REAL_TODAY.m)}-${pad(REAL_TODAY.d)}`);
+  };
+}
+
+// ═══════════════════════════════════════════
+// INIT — DATA.json 로드 후 실행
+// ═══════════════════════════════════════════
+(async () => {
+  // 로딩 표시
+  document.getElementById('h-upd').textContent = 'DATA.json 로딩 중...';
+
+  try {
+    const res = await fetch('DATA.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+
+    // JSON 키를 RAW 구조로 매핑
+    RAW = {
+      meta:           json.meta,
+      by_month:       json.by_month.map(x => ({월:x.월, 건수:x.건수, 렌탈료:x.렌탈료합계})),
+      by_product:     json.by_product_type.map(x => ({
+                        유형: x.유형,
+                        건수: x.건수,
+                        렌탈료: x.렌탈료합계,
+                        계약: (x.유형==='동반차리스'||x.유형==='믿음카리스') ? '리스' : '장기'
+                      })),
+      by_channel:     json.by_channel_company_top15.map(x => ({
+                        채널: x.채널,
+                        건수: x.건수,
+                        렌탈료: x.렌탈료합계,
+                        direct: x.채널 === '하모니렌트카'
+                      })),
+      by_worker:      json.by_worker_top15
+                        .filter(x => x.수행원 !== '이연수')
+                        .slice(0, 10)
+                        .map(x => ({
+                          수행원: x.수행원,
+                          건수: x.건수,
+                          렌탈료: x.렌탈료합계,
+                          chok: ['박미라','신선미','조복경','안점숙'].some(n => x.수행원.includes(n)),
+                          midc: ['김홍국','황인재'].some(n => x.수행원.includes(n))
+                        })),
+      by_car:         json.by_car_model_top15.map(x => ({
+                        모델: x.모델,
+                        건수: x.건수,
+                        렌탈료: x.렌탈료합계,
+                        카테고리: x.카테고리 || ''
+                      })),
+      by_cat:         json.by_car_category.map(x => ({구분:x.구분, 건수:x.건수})),
+      by_sale:        json.by_sale_type.map(x => ({구분:x.구분, 건수:x.건수})),
+      by_contract:    json.by_contract_type || [],
+      daily:          json.daily || [],          // 일별 실제 데이터
+      daily_by_car:   json.daily_by_car || {}    // 날짜별 차종 데이터
+    };
+
+    // 가장 최신 날짜를 REAL_TODAY / SEL_DATE 로 자동 세팅
+    if (RAW.daily && RAW.daily.length > 0) {
+      const lastDate = RAW.daily[RAW.daily.length - 1].날짜;
+      const [ly, lm, ld] = lastDate.split('-').map(Number);
+      REAL_TODAY.y = ly; REAL_TODAY.m = lm; REAL_TODAY.d = ld;
+      SEL_DATE = {y: ly, m: lm, d: ld};
+      selY = ly; selM = lm;
+    }
+
+    // 장기/리스 비율 재계산
+    const ctData = RAW.by_contract;
+    if (ctData && ctData.length) {
+      const ltRow = ctData.find(x => x.유형 === '장기렌트');
+      const lsRow = ctData.find(x => x.유형 === '리스');
+      const ctTotal = (ltRow?.건수||0) + (lsRow?.건수||0);
+      if (ctTotal > 0) {
+        window._LR = (lsRow?.건수||0) / ctTotal;
+        window._RR = (ltRow?.건수||0) / ctTotal;
+      }
+    }
+
+    initCatButtons();
+    initDailyDatePicker();
+    renderAll();
+
+  } catch (err) {
+    console.error('DATA.json 로드 실패:', err);
+    document.getElementById('h-upd').textContent = '⚠ DATA.json 로드 실패 — 같은 폴더에 파일이 있는지 확인하세요';
+  }
+})();
 </script>
 </body>
 </html>
