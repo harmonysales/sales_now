@@ -1210,7 +1210,7 @@ function initDailyDatePicker(){
   document.getElementById('h-upd').textContent = 'DATA.json 로딩 중...';
 
   try {
-    const res = await fetch('DATA.json');
+    const res = await fetch('data.json');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
 
