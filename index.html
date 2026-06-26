@@ -577,9 +577,10 @@ const CAT_TAG_TC = {
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-const REAL_TODAY={y:2026,m:6,d:25}; // 실제 오늘 (데이터 최신일)
-let SEL_DATE={y:2026,m:6,d:25};     // 데일리 현황 기준일 (사용자 선택)
-let selY=2026,selM=6;
+// fetch 후 자동 세팅됨 — 초기값은 로딩 중 표시용
+const REAL_TODAY={y:2026,m:1,d:1};
+let SEL_DATE={y:2026,m:1,d:1};
+let selY=2026,selM=1;
 let fProd='all',fSale='all',fContr='all';
 let activePeriod='daily';
 let csSearch='',csCatFilter='all';
@@ -1166,9 +1167,10 @@ function initDailyDatePicker(){
   const inp=document.getElementById('ddp-input');
   // 초기값 세팅
   const pad=n=>String(n).padStart(2,'0');
+  // SEL_DATE는 fetch 후 최신일로 세팅된 상태
   inp.value=`${SEL_DATE.y}-${pad(SEL_DATE.m)}-${pad(SEL_DATE.d)}`;
-  // max = REAL_TODAY
   inp.max=`${REAL_TODAY.y}-${pad(REAL_TODAY.m)}-${pad(REAL_TODAY.d)}`;
+  console.log('📅 날짜피커 초기값:', inp.value);
   inp.min=RAW&&RAW.by_month&&RAW.by_month.length?RAW.by_month[0].월+'-01':'2024-01-01';
 
   function applyDate(dateStr){
@@ -1255,11 +1257,14 @@ function initDailyDatePicker(){
 
     // 가장 최신 날짜를 REAL_TODAY / SEL_DATE 로 자동 세팅
     if (RAW.daily && RAW.daily.length > 0) {
-      const lastDate = RAW.daily[RAW.daily.length - 1].날짜;
+      // 건수가 0보다 큰 마지막 날짜 찾기 (당일 데이터가 적어도 포함)
+      const validDays = RAW.daily.filter(x => x.건수 >= 0);
+      const lastDate = validDays[validDays.length - 1].날짜;
       const [ly, lm, ld] = lastDate.split('-').map(Number);
       REAL_TODAY.y = ly; REAL_TODAY.m = lm; REAL_TODAY.d = ld;
       SEL_DATE = {y: ly, m: lm, d: ld};
       selY = ly; selM = lm;
+      console.log('✅ 최신 날짜 세팅:', lastDate);
     }
 
     // 장기/리스 비율 재계산
