@@ -1004,23 +1004,37 @@ function monthlyCount(ann,idx){
   return Math.max(1,Math.round(ann*share*6*v*ratio()));
 }
 function renderTables(){
+  const pad=n=>String(n).padStart(2,'0');
+  const ym=`${selY}-${pad(selM)}`;
   document.getElementById('rank-tag').textContent=`${selY}년 ${selM}월`;
-  const chBody=document.querySelector('#tbl-ch tbody');chBody.innerHTML='';
-  const chData=RAW.by_channel.map((x,i)=>({...x,mc:monthlyCount(x.건수,i)})).sort((a,b)=>b.mc-a.mc);
-  const maxCh=Math.max(...chData.map(x=>x.mc));
+
+  // ── 판매채널 TOP 10 (실제 월별 데이터) ──
+  const chBody=document.querySelector('#tbl-ch tbody'); chBody.innerHTML='';
+  const chMonthly = (RAW.monthly_by_channel && RAW.monthly_by_channel[ym]) || [];
+  const chData = chMonthly.length > 0
+    ? chMonthly.slice(0,10)
+    : RAW.by_channel.slice(0,10).map(x=>({채널:x.채널,건수:x.건수,렌탈료합계:x.렌탈료,direct:x.direct}));
+  const maxCh = Math.max(...chData.map(x=>x.건수), 1);
   chData.forEach((item,i)=>{
-    const pct=((item.mc/maxCh)*100).toFixed(0);
-    const mf=Math.round(item.렌탈료*(item.mc/item.건수));
-    chBody.innerHTML+=`<tr><td class="rn">${String(i+1).padStart(2,'0')}</td><td class="rnm">${item.채널}${item.direct?'<span class="badge bd">직영</span>':''}</td><td class="rc">${fmt(item.mc)}</td><td class="rf">${fmtB(mf)}억</td></tr><tr><td colspan="4" style="padding:0 0 4px"><div class="bmini"><div class="bfill" style="width:${pct}%;background:#7c3aed80"></div></div></td></tr>`;
+    const pct=((item.건수/maxCh)*100).toFixed(0);
+    const isDirect = item.direct || item.채널==='하모니렌트카';
+    chBody.innerHTML+=`<tr><td class="rn">${String(i+1).padStart(2,'0')}</td><td class="rnm">${item.채널}${isDirect?'<span class="badge bd">직영</span>':''}</td><td class="rc">${fmt(item.건수)}</td><td class="rf">${fmtB(item.렌탈료합계||0)}억</td></tr><tr><td colspan="4" style="padding:0 0 4px"><div class="bmini"><div class="bfill" style="width:${pct}%;background:#7c3aed80"></div></div></td></tr>`;
   });
-  const wkBody=document.querySelector('#tbl-wk tbody');wkBody.innerHTML='';
-  const wkData=RAW.by_worker.map((x,i)=>({...x,mc:monthlyCount(x.건수,i+10)})).sort((a,b)=>b.mc-a.mc);
-  const maxWk=Math.max(...wkData.map(x=>x.mc));
-  wkData.forEach((item,i)=>{
-    const pct=((item.mc/maxWk)*100).toFixed(0);
-    const mf=Math.round(item.렌탈료*(item.mc/item.건수));
-    const b=item.midc?'<span class="badge bmidc">믿음카</span>':item.chok?'<span class="badge bchok">촉탁</span>':'';
-    wkBody.innerHTML+=`<tr><td class="rn">${String(i+1).padStart(2,'0')}</td><td class="rnm">${item.수행원}${b}</td><td class="rc">${fmt(item.mc)}</td><td class="rf">${fmtB(mf)}억</td></tr><tr><td colspan="4" style="padding:0 0 4px"><div class="bmini"><div class="bfill" style="width:${pct}%;background:#d9770680"></div></div></td></tr>`;
+
+  // ── 수행원 TOP 10 (실제 월별 데이터, 이연수 제외) ──
+  const wkBody=document.querySelector('#tbl-wk tbody'); wkBody.innerHTML='';
+  const wkMonthly = (RAW.monthly_by_worker && RAW.monthly_by_worker[ym]) || [];
+  const wkRaw = wkMonthly.length > 0
+    ? wkMonthly.filter(x=>x.수행원!=='이연수').slice(0,10)
+    : RAW.by_worker.slice(0,10).map(x=>({수행원:x.수행원,건수:x.건수,렌탈료합계:x.렌탈료,chok:x.chok,midc:x.midc}));
+  const maxWk = Math.max(...wkRaw.map(x=>x.건수), 1);
+  wkRaw.forEach((item,i)=>{
+    const pct=((item.건수/maxWk)*100).toFixed(0);
+    const nm=item.수행원;
+    const isChok=['박미라','신선미','조복경','안점숙'].some(n=>nm.includes(n));
+    const isMidc=['김홍국','황인재'].some(n=>nm.includes(n));
+    const b=isMidc?'<span class="badge bmidc">믿음카</span>':isChok?'<span class="badge bchok">촉탁</span>':'';
+    wkBody.innerHTML+=`<tr><td class="rn">${String(i+1).padStart(2,'0')}</td><td class="rnm">${nm}${b}</td><td class="rc">${fmt(item.건수)}</td><td class="rf">${fmtB(item.렌탈료합계||0)}억</td></tr><tr><td colspan="4" style="padding:0 0 4px"><div class="bmini"><div class="bfill" style="width:${pct}%;background:#d9770680"></div></div></td></tr>`;
   });
 }
 
@@ -1028,46 +1042,83 @@ function renderTables(){
 // CAR CHARTS
 // ═══════════════════════════════════════════
 function renderCars(){
-  const md=getMonthData(selY,selM);
-  const totalAnn=RAW.by_month.reduce((s,m)=>s+m.건수,0);
-  const share=md?md.건수/totalAnn:1/6;
-  const gr=ratio();
+  const pad=n=>String(n).padStart(2,'0');
+  const monthPrefix=`${selY}-${pad(selM)}-`;
+
   document.getElementById('car-tag').textContent=`${selY}년 ${selM}월`;
-  document.getElementById('car-meta').textContent=`${selY}년 ${selM}월 기준`;
+  document.getElementById('car-meta').textContent=`${selY}년 ${selM}월 실제 데이터`;
   document.getElementById('car-list-meta').textContent=`${selY}년 ${selM}월`;
-  const models=RAW.by_car.map((x,i)=>{
-    const v=0.7+0.5*Math.abs(Math.sin((i+1)*selM*2.9));
-    return{...x,mc:Math.max(1,Math.round(x.건수*share*6*v*gr))};
-  }).sort((a,b)=>b.mc-a.mc).slice(0,10);
+
+  // ── daily_by_car에서 선택 월 전체 집계 ──
+  const carMap={};   // {모델: {건수, 카테고리}}
+  const catMap={};   // {카테고리: 건수}
+
+  if(RAW.daily_by_car && Object.keys(RAW.daily_by_car).length){
+    Object.entries(RAW.daily_by_car).forEach(([date, cars])=>{
+      if(!date.startsWith(monthPrefix)) return;
+      cars.forEach(c=>{
+        // 차종별
+        if(!carMap[c.모델]) carMap[c.모델]={건수:0, 카테고리:c.카테고리||''};
+        carMap[c.모델].건수 += c.건수;
+        // 카테고리별
+        const cat = c.카테고리||'기타';
+        catMap[cat] = (catMap[cat]||0) + c.건수;
+      });
+    });
+  }
+
+  // 차종 TOP 10
+  const models = Object.entries(carMap)
+    .map(([모델,v])=>({모델, 건수:v.건수, 카테고리:v.카테고리}))
+    .sort((a,b)=>b.건수-a.건수)
+    .slice(0,10);
+
+  // fallback: daily_by_car 없으면 by_car 사용
+  const displayModels = models.length > 0 ? models : RAW.by_car.slice(0,10).map(x=>({모델:x.모델,건수:x.건수,카테고리:x.카테고리||''}));
+
   dc('chart-car');
   const carCtx=document.getElementById('chart-car');
   CI['chart-car']=new Chart(carCtx,{
     type:'bar',
-    data:{labels:models.map(x=>x.모델),datasets:[{label:'건수',data:models.map(x=>x.mc),backgroundColor:'#2563eb99',borderRadius:3}]},
+    data:{
+      labels:displayModels.map(x=>x.모델),
+      datasets:[{label:'건수',data:displayModels.map(x=>x.건수),backgroundColor:'#2563eb99',borderRadius:3}]
+    },
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${fmt(ctx.parsed.y)}건`}}},scales:{x:{grid:{display:false},ticks:{font:{size:12},maxRotation:30}},y:{grid:{color:'#e2e8f0'},ticks:{font:{size:12}}}}}
   });
-  const list=document.getElementById('car-list');list.innerHTML='';
-  const topMax=models[0].mc;
-  models.slice(0,5).forEach((m,i)=>{
-    const pct=((m.mc/topMax)*100).toFixed(0);
-    list.innerHTML+=`<div class="citem"><div class="crn">${i+1}</div><div class="cnm">${m.모델}</div><div class="cpbar"><div class="cpfill" style="width:${pct}%"></div></div><div class="ccnt">${fmt(m.mc)}건</div></div>`;
-  });
+
+  // 이번 달 구매 TOP 5
+  const list=document.getElementById('car-list'); list.innerHTML='';
+  if(displayModels.length > 0){
+    const topMax=displayModels[0].건수;
+    displayModels.slice(0,5).forEach((m,i)=>{
+      const pct=topMax>0?((m.건수/topMax)*100).toFixed(0):0;
+      list.innerHTML+=`<div class="citem"><div class="crn">${i+1}</div><div class="cnm">${m.모델}</div><div class="cpbar"><div class="cpfill" style="width:${pct}%"></div></div><div class="ccnt">${fmt(m.건수)}건</div></div>`;
+    });
+  }
+
+  // 카테고리 TOP 5
+  const cats = Object.entries(catMap)
+    .map(([구분,건수])=>({구분,건수}))
+    .sort((a,b)=>b.건수-a.건수)
+    .slice(0,5);
+
+  // fallback
+  const displayCats = cats.length > 0 ? cats : RAW.by_cat.slice(0,5).map(x=>({구분:x.구분,건수:x.건수}));
+  const catTotal=displayCats.reduce((s,x)=>s+x.건수,0);
+
   dc('chart-cat');
-  const cats=RAW.by_cat.map((x,i)=>{
-    const v=0.7+0.6*Math.abs(Math.sin((i+3)*selM*1.7));
-    return{...x,mc:Math.max(1,Math.round(x.건수*share*6*v*gr))};
-  }).sort((a,b)=>b.mc-a.mc).slice(0,5);
-  const catTotal=cats.reduce((s,x)=>s+x.mc,0);
   const catCtx=document.getElementById('chart-cat');
   CI['chart-cat']=new Chart(catCtx,{
     type:'doughnut',
-    data:{labels:cats.map(x=>x.구분),datasets:[{data:cats.map(x=>x.mc),backgroundColor:CAT_COLORS,borderWidth:2,borderColor:'#fff',hoverOffset:4}]},
+    data:{labels:displayCats.map(x=>x.구분),datasets:[{data:displayCats.map(x=>x.건수),backgroundColor:CAT_COLORS,borderWidth:2,borderColor:'#fff',hoverOffset:4}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.parsed)}건`}}},cutout:'60%'}
   });
-  const leg=document.getElementById('cat-leg');leg.innerHTML='';
-  cats.forEach((c,i)=>{
-    const p=((c.mc/catTotal)*100).toFixed(0);
-    leg.innerHTML+=`<div class="dli"><div class="dll"><div class="dldot" style="background:${CAT_COLORS[i]}"></div><span style="color:var(--text-s)">${c.구분}</span></div><div><span class="dlv">${fmt(c.mc)}</span><span class="dlp">(${p}%)</span></div></div>`;
+
+  const leg=document.getElementById('cat-leg'); leg.innerHTML='';
+  displayCats.forEach((c,i)=>{
+    const p=catTotal>0?((c.건수/catTotal)*100).toFixed(0):0;
+    leg.innerHTML+=`<div class="dli"><div class="dll"><div class="dldot" style="background:${CAT_COLORS[i]}"></div><span style="color:var(--text-s)">${c.구분}</span></div><div><span class="dlv">${fmt(c.건수)}</span><span class="dlp">(${p}%)</span></div></div>`;
   });
 }
 
@@ -1251,8 +1302,10 @@ function initDailyDatePicker(){
       by_cat:         json.by_car_category.map(x => ({구분:x.구분, 건수:x.건수})),
       by_sale:        json.by_sale_type.map(x => ({구분:x.구분, 건수:x.건수})),
       by_contract:    json.by_contract_type || [],
-      daily:          json.daily || [],          // 일별 실제 데이터
-      daily_by_car:   json.daily_by_car || {}    // 날짜별 차종 데이터
+      daily:               json.daily || [],
+      daily_by_car:        json.daily_by_car || {},
+      monthly_by_channel:  json.monthly_by_channel || {},
+      monthly_by_worker:   json.monthly_by_worker || {}
     };
 
     // 가장 최신 날짜를 REAL_TODAY / SEL_DATE 로 자동 세팅
