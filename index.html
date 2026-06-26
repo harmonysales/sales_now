@@ -817,121 +817,167 @@ function renderKPI(){
   const pad=n=>String(n).padStart(2,'0');
   const lr=window._LR||LR, rr=window._RR||RR;
 
-  // ── RAW.daily에서 날짜별 실제 데이터 조회 ──
-  function getDayData(y,m,d){
-    const dateStr=`${y}-${pad(m)}-${pad(d)}`;
-    return RAW.daily.find(x=>x.날짜===dateStr)||{건수:0,장기렌트:0,리스:0,신차:0,재렌트:0};
-  }
+  // ── daily 배열을 날짜 → 객체 맵으로 변환 (빠른 조회) ──
+  const dailyMap={};
+  RAW.daily.forEach(x=>{ dailyMap[x.날짜]=x; });
 
-  // 필터에 따라 건수 계산
-  function filteredCnt(dayObj){
-    // 상품 필터는 daily에 상품별 breakdown 없으므로 ratio로 근사
-    let cnt = dayObj.건수||0;
-    // 장기/리스 필터
-    if(fContr==='장기') cnt = dayObj.장기렌트||0;
-    else if(fContr==='리스') cnt = dayObj.리스||0;
-    // 신차/재렌트 필터 (장기/리스 필터 후 비율 적용)
-    if(fSale==='신차'){
-      const base = dayObj.건수||1;
-      cnt = Math.round(cnt * ((dayObj.신차||0)/base));
-    } else if(fSale==='재렌트'){
-      const base = dayObj.건수||1;
-      cnt = Math.round(cnt * ((dayObj.재렌트||0)/base));
+  // 날짜 객체 → 'YYYY-MM-DD' 문자열
+  const toStr=dt=>`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+
+  // 날짜 문자열로 데이터 조회 (없으면 0)
+  const getDay=str=>dailyMap[str]||{건수:0,장기렌트:0,리스:0,신차:0,재렌트:0};
+
+  // 하루 전 날짜 (월 경계 정확히 처리)
+  const selDt=new Date(SEL_DATE.y,SEL_DATE.m-1,SEL_DATE.d);
+  const yesterDt=new Date(selDt); yesterDt.setDate(selDt.getDate()-1);
+
+  // ── 필터 적용 건수 계산 ──
+  // daily에는 건수/장기렌트/리스/신차/재렌트 실제값이 있음
+  function filteredCnt(obj){
+    if(!obj||!obj.건수) return 0;
+    let cnt = obj.건수;
+
+    // 1단계: 장기/리스 필터 (실제 값 사용)
+    if(fContr==='장기')      cnt = obj.장기렌트||0;
+    else if(fContr==='리스') cnt = obj.리스||0;
+
+    // 2단계: 신차/재렌트 필터 (실제 비율 적용)
+    if(fSale!=='all'){
+      const base = obj.건수||1;
+      const saleVal = fSale==='신차' ? (obj.신차||0) : (obj.재렌트||0);
+      const saleRatio = saleVal / base;
+      cnt = Math.round(cnt * saleRatio);
     }
-    // 상품 필터는 ratio로 근사
+
+    // 3단계: 상품 필터 (daily에 상품별 breakdown 없으므로 월별 비율 적용)
     if(fProd!=='all'){
-      const p=RAW.by_product.find(x=>x.유형===fProd);
-      cnt = Math.round(cnt * (p?p.건수/PROD_TOTAL():0.1));
+      const pad2=n=>String(n).padStart(2,'0');
+      const ym=`${SEL_DATE.y}-${pad2(SEL_DATE.m)}`;
+      const carDetail=(RAW.monthly_car_detail&&RAW.monthly_car_detail[ym])||[];
+      const prodTotal=carDetail.reduce((s,x)=>s+(x.by_product&&x.by_product[fProd]||0),0);
+      const monthTotal=carDetail.reduce((s,x)=>s+(x.total||0),0);
+      const prodRatio=monthTotal>0?prodTotal/monthTotal:0.1;
+      cnt=Math.round(cnt*prodRatio);
     }
-    return cnt;
+    return Math.max(0,cnt);
   }
 
-  // 오늘/어제
-  const todayObj = getDayData(SEL_DATE.y, SEL_DATE.m, SEL_DATE.d);
-  const yestObj  = getDayData(SEL_DATE.y, SEL_DATE.m, SEL_DATE.d-1);
-  const todayCnt = filteredCnt(todayObj);
-  const yestCnt  = filteredCnt(yestObj);
+  // ── 오늘 / 어제 ──
+  const todayStr=toStr(selDt), yesterStr=toStr(yesterDt);
+  const todayCnt=filteredCnt(getDay(todayStr));
+  const yestCnt =filteredCnt(getDay(yesterStr));
 
-  // 이번 주 (선택일 기준 월요일~선택일)
-  const weekStart=(()=>{
-    const dt=new Date(SEL_DATE.y,SEL_DATE.m-1,SEL_DATE.d);
-    const dow=dt.getDay(),diff=dow===0?6:dow-1;
-    const s=new Date(dt);s.setDate(dt.getDate()-diff);return s;
-  })();
-  const prevWeekStart=new Date(weekStart);prevWeekStart.setDate(weekStart.getDate()-7);
-  const prevWeekEnd=new Date(weekStart);prevWeekEnd.setDate(weekStart.getDate()-1);
+  // ── 이번 주 / 전주 (월요일 기준) ──
+  const thisWeekStart=new Date(selDt);
+  const dow=selDt.getDay(), diff=dow===0?6:dow-1;
+  thisWeekStart.setDate(selDt.getDate()-diff);
+
+  const prevWeekStart=new Date(thisWeekStart); prevWeekStart.setDate(thisWeekStart.getDate()-7);
+  const prevWeekEnd  =new Date(thisWeekStart); prevWeekEnd.setDate(thisWeekStart.getDate()-1);
 
   let thisWk=0, prevWk=0;
   RAW.daily.forEach(x=>{
+    if(!x.날짜) return;
     const dt=new Date(x.날짜);
     const cnt=filteredCnt(x);
-    if(dt>=weekStart && dt<=new Date(SEL_DATE.y,SEL_DATE.m-1,SEL_DATE.d)) thisWk+=cnt;
+    if(dt>=thisWeekStart && dt<=selDt) thisWk+=cnt;
     if(dt>=prevWeekStart && dt<=prevWeekEnd) prevWk+=cnt;
   });
 
-  // 이번 달 누계 (1일~선택일)
-  const pad2=n=>String(n).padStart(2,'0');
-  const monthPrefix=`${SEL_DATE.y}-${pad2(SEL_DATE.m)}-`;
-  let cumCnt=0;
-  RAW.daily.forEach(x=>{
-    if(!x.날짜.startsWith(monthPrefix))return;
-    const dd=parseInt(x.날짜.split('-')[2]);
-    if(dd<=SEL_DATE.d) cumCnt+=filteredCnt(x);
-  });
-
-  // 전월 동기 누계
+  // ── 이번 달 누계 / 전월 동기 누계 ──
+  const selMonthPfx=`${SEL_DATE.y}-${pad(SEL_DATE.m)}-`;
   const pm=SEL_DATE.m===1?{y:SEL_DATE.y-1,m:12}:{y:SEL_DATE.y,m:SEL_DATE.m-1};
-  const prevMonthPrefix=`${pm.y}-${pad2(pm.m)}-`;
-  let prevMEst=0;
+  const prevMonthPfx=`${pm.y}-${pad(pm.m)}-`;
+
+  let cumCnt=0, prevMCum=0;
   RAW.daily.forEach(x=>{
-    if(!x.날짜.startsWith(prevMonthPrefix))return;
-    const dd=parseInt(x.날짜.split('-')[2]);
-    if(dd<=SEL_DATE.d) prevMEst+=filteredCnt(x);
+    if(!x.날짜) return;
+    const cnt=filteredCnt(x);
+    if(x.날짜.startsWith(selMonthPfx)){
+      const dd=parseInt(x.날짜.split('-')[2]);
+      if(dd<=SEL_DATE.d) cumCnt+=cnt;
+    }
+    if(x.날짜.startsWith(prevMonthPfx)){
+      const dd=parseInt(x.날짜.split('-')[2]);
+      if(dd<=SEL_DATE.d) prevMCum+=cnt;
+    }
   });
 
+  // ── 장기렌트 / 리스 별도 집계 (실제 값 기반) ──
+  function filteredLT(obj){ // 장기렌트
+    if(!obj||!obj.건수) return 0;
+    let cnt=obj.장기렌트||0;
+    if(fContr==='리스') return 0;
+    if(fSale!=='all'){
+      const r=(fSale==='신차'?(obj.신차||0):(obj.재렌트||0))/(obj.건수||1);
+      cnt=Math.round(cnt*r);
+    }
+    if(fProd!=='all'){
+      const p=RAW.by_product.find(x=>x.유형===fProd);
+      cnt=Math.round(cnt*(p?p.건수/PROD_TOTAL():0.1));
+    }
+    return Math.max(0,cnt);
+  }
+  function filteredLS(obj){ // 리스
+    if(!obj||!obj.건수) return 0;
+    let cnt=obj.리스||0;
+    if(fContr==='장기') return 0;
+    if(fSale!=='all'){
+      const r=(fSale==='신차'?(obj.신차||0):(obj.재렌트||0))/(obj.건수||1);
+      cnt=Math.round(cnt*r);
+    }
+    if(fProd!=='all'){
+      const p=RAW.by_product.find(x=>x.유형===fProd);
+      cnt=Math.round(cnt*(p?p.건수/PROD_TOTAL():0.1));
+    }
+    return Math.max(0,cnt);
+  }
+
+  const ltToday=filteredLT(getDay(todayStr)), ltYest=filteredLT(getDay(yesterStr));
+  const lsToday=filteredLS(getDay(todayStr)), lsYest=filteredLS(getDay(yesterStr));
+  let ltWk=0,ltPWk=0,ltCum=0,ltPCum=0;
+  let lsWk=0,lsPWk=0,lsCum=0,lsPCum=0;
+  RAW.daily.forEach(x=>{
+    if(!x.날짜) return;
+    const dt=new Date(x.날짜);
+    const lt=filteredLT(x), ls=filteredLS(x);
+    if(dt>=thisWeekStart&&dt<=selDt){ ltWk+=lt; lsWk+=ls; }
+    if(dt>=prevWeekStart&&dt<=prevWeekEnd){ ltPWk+=lt; lsPWk+=ls; }
+    if(x.날짜.startsWith(selMonthPfx)){
+      const dd=parseInt(x.날짜.split('-')[2]);
+      if(dd<=SEL_DATE.d){ ltCum+=lt; lsCum+=ls; }
+    }
+    if(x.날짜.startsWith(prevMonthPfx)){
+      const dd=parseInt(x.날짜.split('-')[2]);
+      if(dd<=SEL_DATE.d){ ltPCum+=lt; lsPCum+=ls; }
+    }
+  });
+
+  // ── UI 업데이트 ──
   function setTrend(id,cur,prev){
-    const el=document.getElementById(id);if(!el)return;
-    if(prev===0&&cur===0){el.textContent='데이터없음';el.className='dkc-trend ne';return;}
-    if(prev===0){el.textContent='신규';el.className='dkc-trend ne';return;}
-    const df=cur-prev,pct=((df/prev)*100).toFixed(0);
-    el.textContent=`${df>0?'▲':df<0?'▼':'→'} ${fmt(Math.abs(df))}건 (${Math.abs(pct)}%)`;
+    const el=document.getElementById(id); if(!el) return;
+    if(cur===0&&prev===0){ el.textContent='데이터없음'; el.className='dkc-trend ne'; return; }
+    if(prev===0){ el.textContent='신규'; el.className='dkc-trend ne'; return; }
+    const df=cur-prev, pct=Math.abs(((df/prev)*100).toFixed(0));
+    el.textContent=`${df>0?'▲':df<0?'▼':'→'} ${fmt(Math.abs(df))}건 (${pct}%)`;
     el.className='dkc-trend '+(df>0?'up':df<0?'dn':'ne');
   }
-  function sv(id,v){const el=document.getElementById(id);if(el)el.textContent=fmt(v);}
+  function sv(id,v){ const el=document.getElementById(id); if(el) el.textContent=fmt(v); }
 
   const dateStr=`${SEL_DATE.y}.${pad(SEL_DATE.m)}.${pad(SEL_DATE.d)} 기준`;
-  ['dkc-date1','dkc-date2','dkc-date3'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=dateStr;});
+  ['dkc-date1','dkc-date2','dkc-date3'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=dateStr; });
 
-  // 전체
   sv('k-tot-d',todayCnt); setTrend('k-tot-dt',todayCnt,yestCnt);
   sv('k-tot-w',thisWk);   setTrend('k-tot-wt',thisWk,prevWk);
-  sv('k-tot-m',cumCnt);   setTrend('k-tot-mt',cumCnt,prevMEst);
-
-  // 장기렌트 (fContr 무시하고 raw 장기렌트 건수 기준)
-  function ltCnt(d){ return fContr==='리스'?0:Math.round(filteredCnt(d)*((d.장기렌트||0)/Math.max(d.건수||1,1))||0); }
-  function lsCnt(d){ return fContr==='장기'?0:Math.round(filteredCnt(d)*((d.리스||0)/Math.max(d.건수||1,1))||0); }
-
-  const ltToday=fContr==='리스'?0:(fContr==='장기'?todayCnt:Math.round(todayCnt*rr));
-  const ltYest =fContr==='리스'?0:(fContr==='장기'?yestCnt:Math.round(yestCnt*rr));
-  const ltWk   =fContr==='리스'?0:(fContr==='장기'?thisWk:Math.round(thisWk*rr));
-  const ltPWk  =fContr==='리스'?0:(fContr==='장기'?prevWk:Math.round(prevWk*rr));
-  const ltCum  =fContr==='리스'?0:(fContr==='장기'?cumCnt:Math.round(cumCnt*rr));
-  const ltPME  =fContr==='리스'?0:(fContr==='장기'?prevMEst:Math.round(prevMEst*rr));
+  sv('k-tot-m',cumCnt);   setTrend('k-tot-mt',cumCnt,prevMCum);
 
   sv('k-lt-d',ltToday); setTrend('k-lt-dt',ltToday,ltYest);
   sv('k-lt-w',ltWk);    setTrend('k-lt-wt',ltWk,ltPWk);
-  sv('k-lt-m',ltCum);   setTrend('k-lt-mt',ltCum,ltPME);
-
-  const lsToday=fContr==='장기'?0:(fContr==='리스'?todayCnt:Math.round(todayCnt*lr));
-  const lsYest =fContr==='장기'?0:(fContr==='리스'?yestCnt:Math.round(yestCnt*lr));
-  const lsWk   =fContr==='장기'?0:(fContr==='리스'?thisWk:Math.round(thisWk*lr));
-  const lsPWk  =fContr==='장기'?0:(fContr==='리스'?prevWk:Math.round(prevWk*lr));
-  const lsCum  =fContr==='장기'?0:(fContr==='리스'?cumCnt:Math.round(cumCnt*lr));
-  const lsPME  =fContr==='장기'?0:(fContr==='리스'?prevMEst:Math.round(prevMEst*lr));
+  sv('k-lt-m',ltCum);   setTrend('k-lt-mt',ltCum,ltPCum);
 
   sv('k-ls-d',lsToday); setTrend('k-ls-dt',lsToday,lsYest);
   sv('k-ls-w',lsWk);    setTrend('k-ls-wt',lsWk,lsPWk);
-  sv('k-ls-m',lsCum);   setTrend('k-ls-mt',lsCum,lsPME);
+  sv('k-ls-m',lsCum);   setTrend('k-ls-mt',lsCum,lsPCum);
 
   document.getElementById('today-tag').textContent=`${SEL_DATE.y}년 ${SEL_DATE.m}월 ${SEL_DATE.d}일`;
 }
