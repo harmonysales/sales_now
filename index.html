@@ -867,20 +867,21 @@ function renderKPI(){
   const todayCnt=filteredCnt(getDay(todayStr));
   const yestCnt =filteredCnt(getDay(yesterStr));
 
-  // ── 이번 주 / 전주 (월요일 기준) ──
-  const thisWeekStart=new Date(selDt);
-  const dow=selDt.getDay(), diff=dow===0?6:dow-1;
-  thisWeekStart.setDate(selDt.getDate()-diff);
+  // ── 이번 주 / 전주 (월요일 기준, 시간값 제거해서 정확한 날짜 비교) ──
+  const toDateOnly=dt=>{const d=new Date(dt);d.setHours(0,0,0,0);return d;};
+  const selDt0=toDateOnly(selDt);
+  const dow=selDt0.getDay(), diff=dow===0?6:dow-1;
 
+  const thisWeekStart=new Date(selDt0); thisWeekStart.setDate(selDt0.getDate()-diff);
   const prevWeekStart=new Date(thisWeekStart); prevWeekStart.setDate(thisWeekStart.getDate()-7);
   const prevWeekEnd  =new Date(thisWeekStart); prevWeekEnd.setDate(thisWeekStart.getDate()-1);
 
   let thisWk=0, prevWk=0;
   RAW.daily.forEach(x=>{
     if(!x.날짜) return;
-    const dt=new Date(x.날짜);
+    const dt=toDateOnly(new Date(x.날짜+'T00:00:00'));
     const cnt=filteredCnt(x);
-    if(dt>=thisWeekStart && dt<=selDt) thisWk+=cnt;
+    if(dt>=thisWeekStart && dt<=selDt0) thisWk+=cnt;
     if(dt>=prevWeekStart && dt<=prevWeekEnd) prevWk+=cnt;
   });
 
@@ -939,9 +940,9 @@ function renderKPI(){
   let lsWk=0,lsPWk=0,lsCum=0,lsPCum=0;
   RAW.daily.forEach(x=>{
     if(!x.날짜) return;
-    const dt=new Date(x.날짜);
+    const dt=toDateOnly(new Date(x.날짜+'T00:00:00'));
     const lt=filteredLT(x), ls=filteredLS(x);
-    if(dt>=thisWeekStart&&dt<=selDt){ ltWk+=lt; lsWk+=ls; }
+    if(dt>=thisWeekStart&&dt<=selDt0){ ltWk+=lt; lsWk+=ls; }
     if(dt>=prevWeekStart&&dt<=prevWeekEnd){ ltPWk+=lt; lsPWk+=ls; }
     if(x.날짜.startsWith(selMonthPfx)){
       const dd=parseInt(x.날짜.split('-')[2]);
